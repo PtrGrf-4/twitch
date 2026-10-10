@@ -39,3 +39,5 @@ out/
 .gradle/
 build/
 .idea/
+.DS_Store
+docker-compose.yml
