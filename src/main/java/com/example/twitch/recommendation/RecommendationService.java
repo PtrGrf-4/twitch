@@ -9,32 +9,45 @@ import com.example.twitch.external.model.Stream;
 import com.example.twitch.external.model.Video;
 import com.example.twitch.favorite.FavoriteService;
 import com.example.twitch.model.TypeGroupedItemList;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+
 @Service
 public class RecommendationService {
+
 
     private static final int MAX_GAME_SEED = 3;
     private static final int PER_PAGE_ITEM_SIZE = 20;
 
+
     private final TwitchService twitchService;
     private final FavoriteService favoriteService;
+
 
     public RecommendationService(TwitchService twitchService, FavoriteService favoriteService) {
         this.twitchService = twitchService;
         this.favoriteService = favoriteService;
     }
 
+
+
+
+    @Cacheable("recommend_items")
     public TypeGroupedItemList recommendItems(UserEntity userEntity) {
         List<String> gameIds;
         Set<String> exclusions = new HashSet<>();
+
+
+        // START - Get game ids
         if (userEntity == null) {
-            gameIds = twitchService.getTopGameIds();
+            gameIds  = twitchService.getTopGameIds();
         } else {
             List<ItemEntity> items = favoriteService.getFavoriteItems(userEntity);
             if (items.isEmpty()) {
@@ -48,18 +61,22 @@ public class RecommendationService {
                 gameIds = new ArrayList<>(uniqueGameIds);
             }
         }
+        // END - Get game ids
+
 
         int gameSize = Math.min(gameIds.size(), MAX_GAME_SEED);
         int perGameListSize = PER_PAGE_ITEM_SIZE / gameSize;
+
 
         List<ItemEntity> streams = recommendStreams(gameIds, exclusions);
         List<ItemEntity> clips = recommendClips(gameIds.subList(0, gameSize), perGameListSize, exclusions);
         List<ItemEntity> videos = recommendVideos(gameIds.subList(0, gameSize), perGameListSize, exclusions);
 
+
         return new TypeGroupedItemList(streams, videos, clips);
     }
 
-    // TODO: more implementations
+
     private List<ItemEntity> recommendVideos(List<String> gameIds, int perGameListSize, Set<String> exclusions) {
         List<ItemEntity> resultItems = new ArrayList<>();
         for (String gameId : gameIds) {
@@ -72,6 +89,7 @@ public class RecommendationService {
         }
         return resultItems;
     }
+
 
     private List<ItemEntity> recommendClips(List<String> gameIds, int perGameListSize, Set<String> exclusions) {
         List<ItemEntity> resultItem = new ArrayList<>();
@@ -86,14 +104,19 @@ public class RecommendationService {
         return resultItem;
     }
 
+
     private List<ItemEntity> recommendStreams(List<String> gameIds, Set<String> exclusions) {
         List<Stream> streams = twitchService.getStreams(gameIds, PER_PAGE_ITEM_SIZE);
         List<ItemEntity> resultItems = new ArrayList<>();
-        for (Stream stream : streams) {
+        for (Stream stream: streams) {
             if (!exclusions.contains(stream.id())) {
                 resultItems.add(new ItemEntity(stream));
             }
         }
         return resultItems;
     }
+
+
+
+
 }
